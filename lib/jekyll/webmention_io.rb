@@ -264,6 +264,18 @@ module Jekyll
       else
         log "info", mention.inspect
         log "msg", "Webmention from #{source} to #{target} failed with '#{mention.response.message}', but will remain queued for next time"
+
+        if mention.response.body
+          begin
+            body = JSON.parse(mention.response.body)
+
+            if body.key? "error"
+              log "msg", "Endpoint returned error: #{body['error']}"
+            end
+          rescue
+          end
+        end
+
         update_uri_cache(target, UriState::ERROR)
         false
       end
