@@ -46,7 +46,7 @@ module Jekyll
 
       private
 
-      def process_syndication(post, uri, target, response)
+      def process_syndication(post, target, response)
         # If this is a syndication target, and we have a response,
         # and the syndication entry contains a response mapping, then
         # go through that map and store the selected values into
@@ -62,7 +62,7 @@ module Jekyll
             else
               # Uhoh!  The path doesn't exist, so throw an error and
               # give up on this mapping entry
-              WebmentionIO.log "msg", "The path #{skey} doesn't exist in the response from #{target['endpoint']} for #{uri}"
+              WebmentionIO.log "msg", "The path #{skey} doesn't exist in the response from #{target['endpoint']} for #{post.url}"
 
               value = nil
               break
@@ -91,6 +91,12 @@ module Jekyll
         return nil
       end
 
+      def get_syndication_target(uri)
+        return nil if @syndication.nil?
+
+        @syndication.values.detect { |t| t["endpoint"] == uri }
+      end
+
       def gather_webmentions(posts)
         webmentions = WebmentionIO.read_cached_webmentions "outgoing"
 
@@ -98,44 +104,23 @@ module Jekyll
           # Collect potential outgoing webmentions in this post.
           mentions = get_mentioned_uris(post)
 
-          # Outgoing webmentions may have used either a shorturl or a
-          # full-length URL, so let's get them both.
-          shorturi = post.data["shorturl"]
-          fulluri = File.join(@site_url, post.url)
-
-          # Get cached mentions for the post URI
-          post_webmentions = webmentions[shorturi] || webmentions[fulluri]
-
-          if post_webmentions.nil?
-            # We haven't processed webmentions for this post yet, so let's add
-            # it to the cache for later.
-            #
-            # Note: Given the choice, we preferentially use the short URI.
-
-            webmentions[shorturi || fulluri] = mentions
-
-            next
-          end
-
-          # Okay, we've sent webmentions for this post before, so let's add any
-          # new outgoing webmentions and also process any inbound responses.
-
           mentions.each do |mentioned_uri, response|
-            if post_webmentions.key? mentioned_uri
-              next if @syndication.nil?
+            shorturi = post.data["shorturl"]
+            fulluri = File.join(@site_url, post.url)
 
-              target = @syndication.values.detect { |t|
-                t["endpoint"] == mentioned_uri
-              }
+            target = get_syndication_target(mentioned_uri)
 
-              response = post_webmentions[mentioned_uri]
+            cached_response =
+              webmentions.dig(shorturi, mentioned_uri) ||
+              webmentions.dig(fulluri, mentioned_uri)
 
-              if ! target.nil? and target.key? "response_mapping"
-                process_syndication(post, shorturi || fulluri, target, response)
-              end
-            else
-              # This is a new mention, add the target to the cache
-              post_webmentions[mentioned_uri] = response
+            if cached_response.nil?
+              uri = (! target.nil? and target["shorturl"]) ? shorturi : fulluri
+
+              webmentions[uri] ||= {}
+              webmentions[uri][mentioned_uri] = response
+            elsif ! target.nil? and target.key? "response_mapping"
+              process_syndication(post, target, cached_response)
             end
           end
         end
