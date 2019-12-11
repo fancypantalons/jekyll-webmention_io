@@ -152,6 +152,10 @@ module Jekyll
           uris[post.data["in_reply_to"]] = false
         end
 
+        if post.data["bookmark_of"]
+          uris[post.data["bookmark_of"]] = false
+        end
+
         post.content.scan(/(?:https?:)?\/\/[^\s)#\[\]{}<>%|\^"]+/) do |match|
           unless uris.key? match
             uris[match] = false
