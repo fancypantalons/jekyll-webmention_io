@@ -130,11 +130,18 @@ module Jekyll
           mentions = get_mentioned_uris(post)
 
           mentions.each do |mentioned_uri, response|
-            shorturi = post.data["shorturl"]
-            fulluri = File.join(@site_url, post.url)
-
+            # If this webmention was a product of a syndication instruction,
+            # this goes back into the configuration and pulls that syndication
+            # target config out.
+            #
+            # If this is just a normal webmention, this will return nil.
             target = get_syndication_target(mentioned_uri)
 
+            fulluri = File.join(@site_url, post.url)
+            shorturi = post.data["shorturl"] || fulluri
+
+            # Old cached responses might use either the full or short URIs so
+            # we need to check for both.
             cached_response =
               webmentions.dig(shorturi, mentioned_uri) ||
               webmentions.dig(fulluri, mentioned_uri)
