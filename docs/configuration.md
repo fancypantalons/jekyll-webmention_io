@@ -51,7 +51,7 @@ webmentions:
     twitter: 
       endpoint: https://brid.gy/publish/twitter
       response_mapping:
-        url: syndication
+        syndication: $.url
     github: 
       endpoint: https://brid.gy/publish/github
   bad_uri_policy:
